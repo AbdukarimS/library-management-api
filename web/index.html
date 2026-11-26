@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Library API — Главная и Аналитика</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<nav>
+    <a class="brand" href="/">📚 Library Management System</a>
+    <div class="links">
+        <a href="/" class="active">📊 Аналитика</a>
+        <a href="/books">📖 Книги</a>
+        <a href="/readers">👥 Читатели</a>
+        <a href="/loans">🔄 Выдача и возврат</a>
+    </div>
+</nav>
+
+<div class="container">
+    <h1>Обзор и статистика библиотеки</h1>
+    <div class="stats-bar" id="stats"></div>
+
+    <div class="card">
+        <h2>Доступность библиотечного фонда</h2>
+        <div id="availText">Выполните вход сверху, чтобы загрузить данные...</div>
+        <div class="progress-bg"><div class="progress-fill" id="availBar" style="width:0%"></div></div>
+    </div>
+
+    <div class="grid-2">
+        <div class="card">
+            <h2>📅 Динамика выдач по месяцам</h2>
+            <div class="chart-bars" id="monthChart"></div>
+        </div>
+
+        <div class="card">
+            <h2>🏆 Топ-3 популярных книг</h2>
+            <table>
+                <thead><tr><th>#</th><th>Книга</th><th>Автор</th><th>Выдач</th></tr></thead>
+                <tbody id="topBooks"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script src="/app.js"></script>
+<script>
+const months = ['Янв','Фев','Мар','Апр','Май','Июн','Июл','Авг','Сен','Окт','Ноя','Дек'];
+apiFetch('/api/statistics').then(res => {
+    if (!res.isSuccess) {
+        document.getElementById('availText').textContent = res.errorMessage;
+        return;
+    }
+    const s = res.result;
+    document.getElementById('stats').innerHTML = `
+        <div class="stat-box"><small>Наименований книг</small><span>${s.totalBooks}</span></div>
+        <div class="stat-box"><small>Всего экземпляров</small><span>${s.totalCopies}</span></div>
+        <div class="stat-box"><small>Читателей</small><span>${s.totalReaders}</span></div>
+        <div class="stat-box"><small>Активных выдач</small><span>${s.activeLoans}</span></div>
+        <div class="stat-box"><small>Просрочено</small><span>${s.overdueLoans}</span></div>
+    `;
+    document.getElementById('availText').innerHTML = `Доступно для выдачи: <b>${s.availableCopies}</b> из <b>${s.totalCopies}</b> экз. (<b>${s.availabilityPercent}%</b>)`;
+    document.getElementById('availBar').style.width = s.availabilityPercent + '%';
+
+    const maxVal = Math.max(...s.loansByMonth, 1);
+    document.getElementById('monthChart').innerHTML = s.loansByMonth.map((val, i) => `
+        <div class="bar-col">
+            <div class="bar-val">${val}</div>
+            <div class="bar-fill" style="height:${Math.round((val / maxVal) * 120)}px"></div>
+            <div class="bar-lbl">${months[i]}</div>
+        </div>
+    `).join('');
+
+    document.getElementById('topBooks').innerHTML = (s.topBooks && s.topBooks.length)
+        ? s.topBooks.map((b, i) => `<tr><td><b>${i+1}</b></td><td>${b.title}</td><td>${b.author}</td><td><span class="badge badge-ok">${b.loansCount}</span></td></tr>`).join('')
+        : '<tr><td colspan="4">Пока нет данных о выдачах</td></tr>';
+});
+</script>
+</body>
+</html>

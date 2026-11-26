@@ -1,0 +1,145 @@
+@baseUrl = http://localhost:8080
+
+GET {{baseUrl}}/api/health
+
+###
+GET {{baseUrl}}/api/health/db
+
+###
+POST {{baseUrl}}/api/auth/register
+Content-Type: application/json
+
+{
+  "username": "student_user",
+  "email": "student@library.local",
+  "password": "password123"
+}
+
+###
+POST {{baseUrl}}/api/auth/register
+Content-Type: application/json
+
+{
+  "username": "student_user_2",
+  "email": "student@library.local",
+  "password": "password123"
+}
+
+###
+# @name loginUser
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "student@library.local",
+  "password": "password123"
+}
+
+###
+# @name loginAdmin
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@library.local",
+  "password": "admin123"
+}
+
+###
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@library.local",
+  "password": "wrong_password"
+}
+
+###
+GET {{baseUrl}}/api/books
+
+###
+GET {{baseUrl}}/api/books
+Authorization: Bearer invalid.token.string
+
+###
+GET {{baseUrl}}/api/books
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE2MDAwMDAwMDAsInJvbGUiOiJBRE1JTiIsInVzZXJfaWQiOjF9.invalid_signature
+
+###
+GET {{baseUrl}}/api/books
+Authorization: Bearer {{loginUser.response.body.result.token}}
+
+###
+POST {{baseUrl}}/api/books
+Authorization: Bearer {{loginUser.response.body.result.token}}
+Content-Type: application/json
+
+{
+  "title": "Forbidden Book",
+  "author": "User",
+  "year": 2024,
+  "genre": "IT",
+  "totalCopies": 1
+}
+
+###
+# @name createdBook
+POST {{baseUrl}}/api/books
+Authorization: Bearer {{loginAdmin.response.body.result.token}}
+Content-Type: application/json
+
+{
+  "title": "PostgreSQL Internals",
+  "author": "Egor Rogov",
+  "year": 2023,
+  "genre": "Databases",
+  "totalCopies": 2
+}
+
+###
+GET {{baseUrl}}/api/books/{{createdBook.response.body.result.id}}
+Authorization: Bearer {{loginAdmin.response.body.result.token}}
+
+###
+PUT {{baseUrl}}/api/books/{{createdBook.response.body.result.id}}
+Authorization: Bearer {{loginAdmin.response.body.result.token}}
+Content-Type: application/json
+
+{
+  "title": "PostgreSQL 14 Internals",
+  "author": "Egor Rogov",
+  "year": 2023,
+  "genre": "Databases",
+  "totalCopies": 3
+}
+
+###
+# @name createdLoan
+POST {{baseUrl}}/api/loans
+Authorization: Bearer {{loginAdmin.response.body.result.token}}
+Content-Type: application/json
+
+{
+  "bookId": 1,
+  "readerId": 1,
+  "days": 14
+}
+
+###
+POST {{baseUrl}}/api/loans
+Authorization: Bearer {{loginAdmin.response.body.result.token}}
+Content-Type: application/json
+
+{
+  "bookId": 1,
+  "readerId": 99999,
+  "days": 14
+}
+
+###
+GET {{baseUrl}}/api/books/search?author=' OR '1'='1
+Authorization: Bearer {{loginUser.response.body.result.token}}
+
+###
+GET {{baseUrl}}/api/statistics
+Authorization: Bearer {{loginAdmin.response.body.result.token}}

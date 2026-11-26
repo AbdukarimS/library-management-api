@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Library API — Выдача и возврат</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<nav>
+    <a class="brand" href="/">📚 Library Management System</a>
+    <div class="links">
+        <a href="/">📊 Аналитика</a>
+        <a href="/books">📖 Книги</a>
+        <a href="/readers">👥 Читатели</a>
+        <a href="/loans" class="active">🔄 Выдача и возврат</a>
+    </div>
+</nav>
+
+<div class="container">
+    <div id="msg"></div>
+    <div class="card">
+        <h2>📖 Оформить выдачу книги</h2>
+        <div class="grid-2" style="margin-bottom:0">
+            <div>
+                <label>Выберите книгу:</label>
+                <select id="bookSelect"></select>
+            </div>
+            <div>
+                <label>Выберите читателя:</label>
+                <select id="readerSelect"></select>
+            </div>
+        </div>
+        <label>Срок выдачи (дней):</label>
+        <input id="daysInput" type="number" value="14" style="max-width:200px; display:block">
+        <button onclick="borrow()">Выдать книгу</button>
+    </div>
+
+    <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+            <h2 style="margin:0">Журнал операций</h2>
+            <div>
+                <button class="btn-sm" onclick="loadLoans(false)">Все выдачи</button>
+                <button class="btn-sm btn-green" onclick="loadLoans(true)">Только активные</button>
+            </div>
+        </div>
+        <table>
+            <thead><tr><th>ID</th><th>Книга (ID)</th><th>Читатель (ID)</th><th>Выдана</th><th>Срок до</th><th>Возвращена</th><th>Статус</th><th>Действие</th></tr></thead>
+            <tbody id="loansBody"></tbody>
+        </table>
+    </div>
+</div>
+
+<script src="/app.js"></script>
+<script>
+function notify(text, ok) {
+    const m = document.getElementById('msg');
+    m.textContent = text; m.className = ok ? 'ok' : 'err'; m.style.display = 'block';
+    setTimeout(() => m.style.display = 'none', 4000);
+}
+async function initSelects() {
+    const [bRes, rRes] = await Promise.all([apiFetch('/api/books'), apiFetch('/api/readers')]);
+    document.getElementById('bookSelect').innerHTML = (bRes.result || []).map(b =>
+        `<option value="${b.id}">[${b.id}] ${b.title} — ${b.author} (доступно: ${b.availableCopies})</option>`
+    ).join('');
+    document.getElementById('readerSelect').innerHTML = (rRes.result || []).map(r =>
+        `<option value="${r.id}">[${r.id}] ${r.firstName} ${r.lastName} (${r.email})</option>`
+    ).join('');
+}
+async function loadLoans(onlyActive = false) {
+    const url = onlyActive ? '/api/loans/active' : '/api/loans';
+    const res = await apiFetch(url);
+    if (!res.isSuccess) { notify(res.errorMessage, false); return; }
+    document.getElementById('loansBody').innerHTML = (res.result || []).map(l => `
+        <tr>
+            <td>${l.id}</td><td>Book #${l.bookId}</td><td>Reader #${l.readerId}</td>
+            <td>${new Date(l.borrowedAt).toLocaleDateString()}</td>
+            <td>${new Date(l.dueDate).toLocaleDateString()}</td>
+            <td>${l.returnedAt ? new Date(l.returnedAt).toLocaleDateString() : '-'}</td>
+            <td><span class="badge ${l.isReturned ? 'badge-ok' : 'badge-warn'}">${l.isReturned ? 'Возвращена' : 'На руках'}</span></td>
+            <td>${!l.isReturned ? `<button class="btn-sm btn-green" onclick="returnBook(${l.id})">Вернуть</button>` : '—'}</td>
+        </tr>
+    `).join('');
+}
+async function borrow() {
+    const res = await apiFetch('/api/loans', {
+        method: 'POST',
+        body: JSON.stringify({ bookId: +bookSelect.value, readerId: +readerSelect.value, days: +daysInput.value })
+    });
+    notify(res.isSuccess ? 'Книга успешно выдана!' : res.errorMessage, res.isSuccess);
+    initSelects();
+    loadLoans(false);
+}
+async function returnBook(id) {
+    const res = await apiFetch(`/api/loans/${id}/return`, { method: 'PUT' });
+    notify(res.isSuccess ? 'Книга возвращена в библиотеку!' : res.errorMessage, res.isSuccess);
+    initSelects();
+    loadLoans(false);
+}
+initSelects();
+loadLoans(false);
+</script>
+</body>
+</html>

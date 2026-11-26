@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Library API — Книги</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<nav>
+    <a class="brand" href="/">📚 Library Management System</a>
+    <div class="links">
+        <a href="/">📊 Аналитика</a>
+        <a href="/books" class="active">📖 Книги</a>
+        <a href="/readers">👥 Читатели</a>
+        <a href="/loans">🔄 Выдача и возврат</a>
+    </div>
+</nav>
+
+<div class="container">
+    <div id="msg"></div>
+    <div class="grid-2">
+        <div class="card">
+            <h2>➕ Добавить новую книгу</h2>
+            <input id="bTitle" placeholder="Название книги">
+            <input id="bAuthor" placeholder="Автор">
+            <input id="bYear" type="number" placeholder="Год издания (например, 2021)">
+            <input id="bGenre" placeholder="Жанр (например, IT)">
+            <input id="bCopies" type="number" placeholder="Количество экземпляров" value="2">
+            <button onclick="addBook()">Сохранить книгу</button>
+        </div>
+
+        <div class="card">
+            <h2>🔍 Поиск и фильтрация</h2>
+            <input id="sTitle" placeholder="Поиск по названию...">
+            <input id="sAuthor" placeholder="Поиск по автору...">
+            <input id="sGenre" placeholder="Поиск по жанру...">
+            <input id="sYear" type="number" placeholder="Год издания">
+            <button onclick="searchBooks()">Найти</button>
+            <button style="background:#64748b" onclick="loadBooks()">Сбросить фильтр</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>Каталог книг</h2>
+        <table>
+            <thead><tr><th>ID</th><th>Название</th><th>Автор</th><th>Год</th><th>Жанр</th><th>Доступно / Всего</th><th>Действие</th></tr></thead>
+            <tbody id="booksBody"></tbody>
+        </table>
+    </div>
+</div>
+
+<script src="/app.js"></script>
+<script>
+function notify(text, ok) {
+    const m = document.getElementById('msg');
+    m.textContent = text; m.className = ok ? 'ok' : 'err'; m.style.display = 'block';
+    setTimeout(() => m.style.display = 'none', 4000);
+}
+function render(list) {
+    document.getElementById('booksBody').innerHTML = (list || []).map(b => `
+        <tr>
+            <td>${b.id}</td><td><b>${b.title}</b></td><td>${b.author}</td><td>${b.year}</td><td>${b.genre}</td>
+            <td><span class="badge ${b.availableCopies > 0 ? 'badge-ok' : 'badge-err'}">${b.availableCopies} / ${b.totalCopies}</span></td>
+            <td><button class="btn-sm btn-red" onclick="delBook(${b.id})">Удалить</button></td>
+        </tr>
+    `).join('');
+}
+async function loadBooks() {
+    const res = await apiFetch('/api/books');
+    if (!res.isSuccess) { notify(res.errorMessage, false); return; }
+    render(res.result);
+}
+async function searchBooks() {
+    const p = new URLSearchParams();
+    if (sTitle.value) p.set('title', sTitle.value);
+    if (sAuthor.value) p.set('author', sAuthor.value);
+    if (sGenre.value) p.set('genre', sGenre.value);
+    if (sYear.value) p.set('year', sYear.value);
+    const res = await apiFetch('/api/books/search?' + p.toString());
+    if (!res.isSuccess) { notify(res.errorMessage, false); return; }
+    render(res.result);
+}
+async function addBook() {
+    const res = await apiFetch('/api/books', {
+        method: 'POST',
+        body: JSON.stringify({ title: bTitle.value, author: bAuthor.value, year: +bYear.value, genre: bGenre.value, totalCopies: +bCopies.value })
+    });
+    notify(res.isSuccess ? 'Книга успешно добавлена!' : res.errorMessage, res.isSuccess);
+    if (res.isSuccess) loadBooks();
+}
+async function delBook(id) {
+    const res = await apiFetch('/api/books/' + id, { method: 'DELETE' });
+    notify(res.isSuccess ? 'Книга удалена' : res.errorMessage, res.isSuccess);
+    loadBooks();
+}
+loadBooks();
+</script>
+</body>
+</html>
